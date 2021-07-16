@@ -5,6 +5,7 @@ import astropy.constants as const
 import astropy.units as u
 import numpy as np
 from scipy import interpolate
+from matplotlib.widgets import Slider
 import xarray as xr
 
 import psipy.visualization as viz
@@ -36,6 +37,7 @@ class Variable:
         self._data = self._data.sortby(['phi', 'theta', 'r', 'time'])
         self.name = name
         self._unit = unit
+        self.slider = None
 
     def __str__(self):
         return textwrap.dedent(f'''
@@ -247,27 +249,47 @@ class Variable:
         return (self.data.shape[1] - 1) // 2
 
     # Methods for equatorial cuts
-    def plot_equatorial_cut(self, ax=None, **kwargs):
+    def plot_equatorial_cut(self, timestep=None, ax=None, **kwargs):
         """
         Plot an equatorial cut.
 
         Parameters
         ----------
+        timestep : int, optional
+            Timestep to plot. If `None`, an animation is shown.
         ax : matplolit.axes.Axes, optional
             axes on which to plot. Defaults to current axes if not specified.
         kwargs :
             Additional keyword arguments are passed to `xarray.plot.pcolormesh`.
         """
-        ax = viz.setup_polar_ax(ax)
         kwargs = self._set_cbar_label(kwargs, self.unit.to_string('latex'))
-        # Get data slice
-        sliced = self.data.isel(theta=self._equator_theta_idx)
-        # Plot
-        sliced.plot(x='phi', y='r', ax=ax, **kwargs)
-        # Plot formatting
+        # Get data slice at equator
+        theta_slice = self.data.isel(theta=self._equator_theta_idx)
+        animate = timestep is None
+        if timestep is None:
+            sliced = theta_slice.isel(time=0)
+        else:
+            sliced = theta_slice.sel(time=timestep)
+
+        ax = viz.setup_polar_ax(ax)
+        mesh = sliced.plot(x='phi', y='r', ax=ax, **kwargs)
         viz.format_equatorial_ax(ax)
-        theta = np.rad2deg(sliced['theta'].values)
-        ax.set_title(f'{self.name}, equatorial plane')
+        ax.set_title(f'{self.name}, equatorial plane, timestep={timestep}')
+
+        if animate:
+            slax = ax.figure.add_subplot(20, 1, 20)
+            times = self.time_coords
+            slider = Slider(slax, 'Timestep',
+                            valmin=min(times),
+                            valmax=max(times),
+                            valinit=times[0],
+                            valstep=times)
+            self.slider = slider
+
+            def update_mesh(val):
+                mesh.set_array(theta_slice.sel(time=int(val)).values.T)
+
+            self.slider.on_changed(update_mesh)
 
     def contour_equatorial_cut(self, levels, ax=None, **kwargs):
         """

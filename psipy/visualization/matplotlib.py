@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from matplotlib.projections.polar import ThetaFormatter
 import numpy as np
 
@@ -21,7 +22,7 @@ def set_theta_formatters(ax):
 
 def setup_polar_ax(ax):
     if ax is None:
-        ax = plt.gca(projection='polar')
+        ax = plt.subplot(projection='polar')
     if ax.name != 'polar':
         raise ValueError('ax must have a polar projection')
     return ax
