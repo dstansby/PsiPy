@@ -18,7 +18,8 @@ class Variable:
     A single scalar variable.
 
     This class primarily contains methods for plotting data. It can be created
-    with any `xarray.DataArray` that has ``['theta', 'phi', 'r']`` fields.
+    with any `xarray.DataArray` that has ``['theta', 'phi', 'r', 'time']``
+    fields.
 
     Parameters
     ----------
@@ -32,7 +33,7 @@ class Variable:
     def __init__(self, data, name, unit):
         self._data = data
         # Sort the data once now for any interpolation later
-        self._data = self._data.sortby(['phi', 'theta', 'r'])
+        self._data = self._data.sortby(['phi', 'theta', 'r', 'time'])
         self.name = name
         self._unit = unit
 
@@ -41,7 +42,8 @@ class Variable:
         Variable
         --------
         Name: {self.name}
-        Grid size: {self._data.shape} (phi, theta, r)
+        Grid size: {self._data.shape[0:3]} (phi, theta, r)
+        Timesteps: {self._data.shape[-1]}
         ''')
 
     @property
@@ -89,6 +91,13 @@ class Variable:
         Longitude coordinate values.
         """
         return self._data.coords['phi'].values
+
+    @property
+    def time_coords(self):
+        """
+        Timestep coordinate values.
+        """
+        return self._data.coords['time'].values
 
     def radial_normalized(self, radial_exponent):
         r"""
@@ -149,7 +158,7 @@ class Variable:
 
         kwargs = self._set_cbar_label(kwargs, self.unit.to_string('latex'))
         # Take slice of data, and plot
-        sliced = self.data.isel(r=i)
+        sliced = self.data.isel(r=i, time=0)
         sliced.plot(x='phi', y='theta', ax=ax, **kwargs)
 
         # Plot formatting
@@ -173,7 +182,7 @@ class Variable:
             Additional keyword arguments are passed to `xarray.plot.contour`.
         """
         ax = self._setup_radial_ax(ax)
-        sliced = self.data.isel(r=i)
+        sliced = self.data.isel(r=i, time=0)
         # Need to save a copy of the title to reset it later, since xarray
         # tries to set it's own title that we don't want
         title = ax.get_title()
@@ -199,7 +208,7 @@ class Variable:
 
         kwargs = self._set_cbar_label(kwargs, self.unit.to_string('latex'))
         # Take slice of data and plot
-        sliced = self.data.isel(phi=i)
+        sliced = self.data.isel(phi=i, time=0)
         sliced.plot(x='theta', y='r', ax=ax, **kwargs)
         viz.format_polar_ax(ax)
         phi = np.rad2deg(sliced['phi'].values)
@@ -221,7 +230,7 @@ class Variable:
             Additional keyword arguments are passed to `xarray.plot.contour`.
         """
         ax = viz.setup_polar_ax(ax)
-        sliced = self.data.isel(phi=i)
+        sliced = self.data.isel(phi=i, time=0)
         # Need to save a copy of the title to reset it later, since xarray
         # tries to set it's own title that we don't want
         title = ax.get_title()
@@ -274,7 +283,7 @@ class Variable:
             Additional keyword arguments are passed to `xarray.plot.contour`.
         """
         ax = viz.setup_polar_ax(ax)
-        sliced = self.data.isel(theta=self._equator_theta_idx)
+        sliced = self.data.isel(theta=self._equator_theta_idx, time=0)
         # Need to save a copy of the title to reset it later, since xarray
         # tries to set it's own title that we don't want
         title = ax.get_title()
